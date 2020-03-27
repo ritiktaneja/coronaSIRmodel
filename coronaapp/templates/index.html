@@ -281,6 +281,8 @@ var vm = new Vue({
 
  function showInfo(state,population, count, gamma=0.04,beta=0.16,u=0.02,lockdown=0)
       {
+
+        scrollTo();
         axios.get('/api?population='+population+'&count='+count+'&gamma='+gamma+'&beta='+beta*(1-lockdown)+'&u='+u+'&lockedown='+0)
         .then(function(response){
           console.log(response.data)
@@ -349,7 +351,10 @@ var vm = new Vue({
  
      
     
-
+ function scrollTo() {
+            $('html, body').animate({ scrollTop: $('#tester').offset().top }, 'slow');
+            return false;
+        }
 
 </script>
 
