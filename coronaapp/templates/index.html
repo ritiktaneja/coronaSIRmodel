@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+{%load static%}
+<html lang="en">
+
+<head>
+  <!-- India State Map  -->
+  <title>Covid19 | India</title>
+
+<script
+  src="https://code.jquery.com/jquery-3.4.1.min.js"
+  integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
+  crossorigin="anonymous"></script>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
+<link href="{% static 'custom.css' %}" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/gh/tengbao/vanta/vendor/three.r95.min.js"></script>
+
+</head>
+
+<body id="bodycontainer" class="text-light">
+<h1 class="h1 text-light text-center">Covid19 SIR Model </h1>
+
+<div id="app" class="container-fluid">
+  
+  <div class="text-light col-md-4 container col-sm-12"  id="chart">
+  </div>
+
+
+      <div id="tester" class="container col-sm-8  ">
+  </div>
+
+
+   <form>
+  <div id="form" class="text-light container mt-3 col-sm-8 ">
+
+
+
+   <div class="px-3 col-sm-12 mx-2 ">
+      <div>
+      <label> Lockdown Coefficient (0 - 1)</label>
+      <input type="decimal" v-model="lockdown" class="form-control">
+      </div>
+     
+      </div>
+      <div class="px-3 col-sm-12 mx-2 ">
+      <div>
+      <label> Population</label>
+      <input type="number" v-model="population" class="form-control">
+      </div>
+      <div>
+      <label>Initial Number of Infected People</label>
+      <input type="number" v-model="infected" class="form-control">
+      </div>
+      </div>
+
+  
+      <div class="px-3 col-sm-12 mx-2 ">
+      <div>
+      <label> Recovery Coefficient (gamma)</label>
+      <input type="decimal" v-model="gamma" class="form-control">
+      </div>
+      <div>
+      <label> Transmission Coefficient (beta)</label>
+      <input type="decimal" v-model="beta" class="form-control">
+      </div>
+      <div>
+      <label> Mortality Rate (u)</label>
+      <input type="decimal" v-model="u" class="form-control">
+      </div>
+      </div>
+
+       <div class="px-3  mt-3">
+       <input type="button" class="btn btn-outline-danger text-light" @click="simulate"  value="Simulate"> 
+      </div>
+    </div>
+
+      
+
+  
+  </div>
+   <form>
+
+
+
+ </div>
+</body>
+
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script type="text/javascript" src="{% static  'd3.geo.min.js' %}"></script>
+{% comment %} <script src="{% static 'map.js' %}"></script> {% endcomment %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+ <script src="{%static 'vantanet.js'%}">
+ 
+
+
+ </script>
+  
+<script>
+
+var lockdown,population,infected,gamma,beta,u;
+ 
+ VANTA.CELLS({
+  el: "#bodycontainer",
+  mouseControls: true,
+  touchControls: true,
+  minHeight: 200.00,
+  minWidth: 200.00,
+  scale: 1.00,
+  color1: 0x5c2828,
+  color2: 0xc51212,
+  size: 0.90,
+  speed: 0.60
+})
+
+var data = {};
+var map;
+
+var vm = new Vue({
+  el : "#app",
+  data(){
+    return {
+        loaded : true,
+        lockdown  : 0,
+        population : 1000,
+        infected : 1,
+        gamma : 0.04,
+        beta : 0.16,
+        u : 0.02
+    }
+  },
+  mounted: function()
+  {
+
+    
+    
+        axios.get('https://script.googleusercontent.com/macros/echo?user_content_key=7pHEabmSBNWMBaClqXtjmBKRhHtAsPGbE8c0OD3IZkRteMiTfajvezakiaXRekBftfDK9d8OzcjUPGw2SdiUO3jQ9ZW5pJdqm5_BxDlH2jW0nuo2oDemN9CCS2h10ox_1xSncGQajx_ryfhECjZEnKXFvsR88vL4WiBr168omFadgngDnj25DLpEvLRaiIpzZr1NvbW-Bo38vshdDBv10tpytj_A4aoE&lib=Mm1FD1HVuydJN5yAB3dc_e8h00DPSBbB3')
+          .then(function(response){
+          
+            var data = response.data;
+
+
+            var w = 800;
+            var h = 550;
+            var proj = d3.geo.mercator();
+            var path = d3.geo.path().projection(proj);
+            var t = proj.translate(); // the projection's default translation
+            var s = proj.scale() // the projection's default scale
+
+      var buckets = 9,
+        colors = ["#ffcccc", "#ffb3b3", "#ff9999", "#c21808", "#ff6666", "#ff4d4d", "#9b1306", "#881106", "#740e05"]; // alternatively colorbrewer.YlGnBu[9]
+
+       var map = d3.select("#chart").append("svg:svg")
+        .attr("width", '130%')
+        .attr("height", '500px')
+        //.call(d3.behavior.zoom().on("zoom", redraw))
+        .call(initialize); 
+
+      var india = map.append("svg:g")
+        .attr("id", "india");
+
+      var div = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0);
+
+        	
+
+      d3.json("{% static 'states1.json' %}", function (json) {
+        
+        var maxTotal = d3.max(json.features, function (d) { 
+        
+            d.total = data[d.id]? data[d.id]: 0;
+            
+          return d.total });
+
+        var colorScale = d3.scale.quantile()
+          .domain(d3.range(buckets).map(function (d) { return (d / buckets) * maxTotal }))
+          .range(colors);
+
+
+        
+
+
+        india.selectAll("path")
+          .data(json.features)
+          .enter().append("path")
+          .attr("d", path)
+          .style("fill", colors[0])
+          .style("opacity", .9)
+
+          .on('click', function (d, i) {
+            vm.population = d.population;
+            vm.infected = d.total;
+            showInfo(d.id,d.population, d.total);
+            
+            d3.select(this).transition().duration(300).style("opacity", 1);
+            div.transition().duration(300)
+              .style("opacity", 1)
+              
+            div.text(d.id + " : " + d.total)
+              .style("left", (d3.event.pageX) + "px")
+              .style("top", (d3.event.pageY - 30) + "px");
+          })
+          .on('hover', function (d, i) {
+            
+        
+            d3.select(this).transition().duration(300).style("opacity", 1);
+            div.transition().duration(300)
+              .style("opacity", 1)
+              
+            div.text(d.id + " : " + d.total)
+              .style("left", (d3.event.pageX) + "px")
+              .style("top", (d3.event.pageY - 30) + "px");
+          })
+
+          .on('mouseleave', function (d, i) {
+            d3.select(this).transition().duration(300)
+              .style("opacity", 1);
+            div.transition().duration(300)
+              .style("opacity", 0);
+          })
+          .on('mouseenter', function (d, i) {
+            d3.select(this).transition().duration(300)
+              .style("opacity", 0.8);
+            div.transition().duration(300)
+              .style("opacity", 0);
+
+          });
+
+        india.selectAll("path").transition().duration(1000)
+      
+          .style("fill", function (d) { 
+          
+            return colorScale(d.total); });
+      });
+
+      function initialize() {
+        proj.scale(4700);
+        proj.translate([-900, 525]);
+      }
+
+
+
+          })
+          .catch(function (error){
+            console.log(error);
+          })
+          .finally(function(){
+            console.log('finally');
+          });    
+      },
+       methods:
+     {
+        simulate()
+        {
+          title = 'Custom';
+          gamma = this.gamma;
+          beta = this.beta;
+          lockdown = this.lockdown;
+          population = this.population;
+          u = this.u;
+          infected = this.infected;
+        
+          showInfo(title,population,infected,gamma,beta,u,lockdown)
+        },
+        setValue(d)
+        {
+          this.population = d.population;
+          this.infected = d.count;
+        }
+
+  },
+    
+
+    }); //End Vue
+    
+
+
+ function showInfo(state,population, count, gamma=0.04,beta=0.16,u=0.02,lockdown=0)
+      {
+        axios.get('/api?population='+population+'&count='+count+'&gamma='+gamma+'&beta='+beta*(1-lockdown)+'&u='+u+'&lockedown='+0)
+        .then(function(response){
+          console.log(response.data)
+        
+        TESTER = document.getElementById('tester');
+        var x=[];
+        for(var i=0;i<=300;i++)
+        x[i] = i;
+      
+       var layout = {
+        title:state,
+        paper_bgcolor : "#000000",  
+        plot_bgcolor  :"#000000", 
+        xaxis: {
+          title: 'Days',
+          showgrid: false,
+          zeroline: false
+        },
+        yaxis: {
+          title: 'Population',
+          showline: false
+        },
+        orientation : "h",
+        yanchor : 'middle',
+        };
+
+
+
+        Plotly.newPlot( TESTER, [{  
+        x: x,
+        y: response.data[0],
+        name: 'Susceptible' },
+        {  
+        x: x,
+        y: response.data[1],
+        name: 'Exposed' 
+        },
+        {  
+        x: x,
+        y: response.data[3],
+        name: 'Recovered'
+        },
+        {  
+        x: x,
+        y: response.data[2] ,
+        name: 'Infected and Quarrantined',
+        },
+        {  
+        x: x,
+        y: response.data[4],
+        name: 'Dead'
+        }
+        
+        
+        ], layout);
+
+        })
+        .catch(function(error){
+            console.log('error : ',error);
+        })
+        .finally(function(){
+          console.log('finally2');
+        });
+      }
+
+ 
+     
+    
+
+
+</script>
+
+<style>
+html,body {
+  background : black;
+  height:170%;
+}
+#chart {
+  position : relative;
+}
+#tester {
+
+}
+</style>
+
+
+</html>
+
